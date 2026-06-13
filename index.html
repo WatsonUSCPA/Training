@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>筋トレ記録</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>💪 筋トレ記録</h1>
+  </header>
+
+  <main>
+    <!-- ============ タイマー ============ -->
+    <section id="tab-timer" class="tab-panel active">
+      <div class="card">
+        <h2>タイマー</h2>
+
+        <div class="timer-display" id="timerDisplay">00:00.0</div>
+
+        <div class="timer-mode">
+          <button class="mode-btn active" data-mode="stopwatch">ストップウォッチ</button>
+          <button class="mode-btn" data-mode="interval">インターバル</button>
+        </div>
+
+        <!-- インターバル用プリセット -->
+        <div class="interval-presets" id="intervalPresets" hidden>
+          <button class="preset-btn" data-sec="30">30秒</button>
+          <button class="preset-btn" data-sec="60">60秒</button>
+          <button class="preset-btn" data-sec="90">90秒</button>
+          <button class="preset-btn" data-sec="120">2分</button>
+          <button class="preset-btn" data-sec="180">3分</button>
+          <div class="custom-interval">
+            <input type="number" id="customInterval" min="1" placeholder="秒" />
+            <button id="setCustomInterval">設定</button>
+          </div>
+        </div>
+
+        <div class="timer-controls">
+          <button id="timerStart" class="btn btn-primary">スタート</button>
+          <button id="timerStop" class="btn" disabled>ストップ</button>
+          <button id="timerReset" class="btn btn-ghost">リセット</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 記録 ============ -->
+    <section id="tab-record" class="tab-panel">
+      <div class="card">
+        <h2>トレーニングを記録</h2>
+
+        <label class="field">
+          <span>日付</span>
+          <input type="date" id="recordDate" />
+        </label>
+
+        <!-- 部位選択 -->
+        <label class="field">
+          <span>部位</span>
+          <div class="row">
+            <select id="bodyPartSelect"></select>
+            <button id="addBodyPart" class="btn btn-ghost btn-sm" title="部位を追加">＋</button>
+          </div>
+        </label>
+
+        <!-- 種目選択 -->
+        <label class="field">
+          <span>種目</span>
+          <div class="row">
+            <select id="exerciseSelect"></select>
+            <button id="addExercise" class="btn btn-ghost btn-sm" title="種目を新規追加">＋</button>
+          </div>
+        </label>
+
+        <!-- セット入力 -->
+        <div class="sets-area">
+          <div class="sets-header">
+            <span>セット</span>
+            <span>重量(kg)</span>
+            <span>回数</span>
+            <span></span>
+          </div>
+          <div id="setsList"></div>
+          <button id="addSet" class="btn btn-ghost btn-sm">＋ セットを追加</button>
+        </div>
+
+        <label class="field">
+          <span>メモ（任意）</span>
+          <input type="text" id="recordMemo" placeholder="調子・フォームなど" />
+        </label>
+
+        <button id="saveRecord" class="btn btn-primary btn-block">記録を保存</button>
+      </div>
+    </section>
+
+    <!-- ============ 履歴 ============ -->
+    <section id="tab-history" class="tab-panel">
+      <div class="card">
+        <div class="history-toolbar">
+          <h2>履歴</h2>
+          <div class="row">
+            <button id="exportCsv" class="btn btn-ghost btn-sm">CSV出力</button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>部位で絞り込み</span>
+          <select id="historyFilter"></select>
+        </label>
+
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ ナビゲーション ============ -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="timer">⏱<span>タイマー</span></button>
+    <button class="tab-btn" data-tab="record">📝<span>記録</span></button>
+    <button class="tab-btn" data-tab="history">📊<span>履歴</span></button>
+  </nav>
+
+  <!-- ============ モーダル（汎用入力） ============ -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box">
+      <h3 id="modalTitle"></h3>
+      <input type="text" id="modalInput" />
+      <div class="modal-actions">
+        <button id="modalCancel" class="btn btn-ghost">キャンセル</button>
+        <button id="modalOk" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
