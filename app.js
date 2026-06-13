@@ -255,6 +255,10 @@ const bodyPartSelect = $("#bodyPartSelect");
 const exerciseSelect = $("#exerciseSelect");
 const setsList = $("#setsList");
 
+// ドロップダウン内の「新規追加」用の特別な値
+const ADD_NEW = "__add_new__";
+let currentExercise = ""; // 直近に選んでいた有効な種目（追加をキャンセルしたとき戻す用）
+
 function getBodyParts() {
   return Object.keys(state.exercises);
 }
@@ -271,19 +275,30 @@ function renderBodyParts(selected) {
 function renderExercises(selected) {
   const part = bodyPartSelect.value;
   const list = state.exercises[part] || [];
+  const addOption = `<option value="${ADD_NEW}">＋ 新しい種目を追加…</option>`;
   if (list.length === 0) {
-    exerciseSelect.innerHTML = `<option value="" disabled selected>種目がありません（＋で追加）</option>`;
+    exerciseSelect.innerHTML =
+      `<option value="" disabled selected>種目を選択 / 追加</option>` + addOption;
   } else {
-    exerciseSelect.innerHTML = list
-      .map((e) => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`)
-      .join("");
+    exerciseSelect.innerHTML =
+      list
+        .map((e) => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`)
+        .join("") + addOption;
     if (selected && list.includes(selected)) exerciseSelect.value = selected;
   }
+  if (exerciseSelect.value !== ADD_NEW) currentExercise = exerciseSelect.value;
   updateLastRecord();
 }
 
 bodyPartSelect.addEventListener("change", () => renderExercises());
-exerciseSelect.addEventListener("change", updateLastRecord);
+exerciseSelect.addEventListener("change", () => {
+  if (exerciseSelect.value === ADD_NEW) {
+    addNewExercise(currentExercise); // ドロップダウンから「新規追加」を選んだ
+    return;
+  }
+  currentExercise = exerciseSelect.value;
+  updateLastRecord();
+});
 
 /* ---- 前回の記録 ---- */
 // 指定した部位・種目で最も新しい記録を返す
@@ -361,21 +376,27 @@ $("#addBodyPart").addEventListener("click", async () => {
   renderBodyParts(name);
 });
 
-// 種目を新規追加
-$("#addExercise").addEventListener("click", async () => {
+// 種目を新規追加（ボタン・ドロップダウンの両方から呼ばれる）
+async function addNewExercise(prev) {
   const part = bodyPartSelect.value;
   if (!part) {
-    await promptModal("先に部位を追加してください");
+    await promptModal("先に部位を選んでください");
+    renderExercises(prev);
     return;
   }
-  const name = await promptModal(`「${part}」の種目を追加`, "種目名");
-  if (!name) return;
-  if (!state.exercises[part].includes(name)) {
+  const name = await promptModal(
+    `「${part}」に新しい種目を追加`,
+    "種目名（例：インクラインベンチプレス）"
+  );
+  if (name && !state.exercises[part].includes(name)) {
     state.exercises[part].push(name);
     saveData();
   }
-  renderExercises(name);
-});
+  // 追加した種目を選択。キャンセル時は元の選択に戻す
+  renderExercises(name || prev);
+}
+
+$("#addExercise").addEventListener("click", () => addNewExercise(currentExercise));
 
 /* ---- 換算表示の更新 ---- */
 function updateConvHint(row) {
