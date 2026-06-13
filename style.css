@@ -131,19 +131,32 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 
 /* ---- セット入力 ---- */
 .sets-area { margin-bottom: 16px; }
+
+.sets-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.sets-toolbar > span { font-size: .85rem; color: var(--muted); }
+.unit-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.unit-btn {
+  padding: 5px 14px; background: transparent; border: none; color: var(--muted);
+  font-size: .85rem; font-weight: 700; cursor: pointer;
+}
+.unit-btn.active { background: var(--primary-dark); color: #042f43; }
+
 .sets-header, .set-row {
   display: grid;
-  grid-template-columns: 48px 1fr 1fr 40px;
+  grid-template-columns: 32px 1fr 1fr 36px;
   gap: 8px;
   align-items: center;
 }
 .sets-header { font-size: .8rem; color: var(--muted); margin-bottom: 8px; padding: 0 2px; }
-.set-row { margin-bottom: 8px; }
+.set-row { margin-bottom: 10px; }
 .set-row .set-no { text-align: center; color: var(--muted); font-weight: 600; }
 .set-row .del-set {
   background: transparent; border: none; color: var(--danger);
   font-size: 1.3rem; cursor: pointer; padding: 0;
 }
+/* 重量セル＋換算表示 */
+.weight-cell { display: flex; flex-direction: column; gap: 2px; }
+.conv-hint { font-size: .72rem; color: var(--primary); min-height: .9em; padding-left: 2px; }
 
 /* ---- 履歴 ---- */
 .history-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

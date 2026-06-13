@@ -18,7 +18,19 @@ const DEFAULT_DATA = {
   },
   // 記録の配列
   records: [],
+  // 設定（入力する重量の単位）
+  settings: { unit: "lb" },
 };
+
+// 重量の換算（1 lb = 0.45359237 kg）
+const LB_TO_KG = 0.45359237;
+const lbToKg = (lb) => lb * LB_TO_KG;
+const kgToLb = (kg) => kg / LB_TO_KG;
+
+// 入力値をkgに変換（単位に応じて）
+function toKg(weight, unit) {
+  return unit === "kg" ? Number(weight) : lbToKg(Number(weight));
+}
 
 /* ---------- データ層 ---------- */
 function loadData() {
@@ -28,6 +40,7 @@ function loadData() {
     const data = JSON.parse(raw);
     if (!data.exercises) data.exercises = {};
     if (!Array.isArray(data.records)) data.records = [];
+    if (!data.settings) data.settings = { unit: "lb" };
     return data;
   } catch (e) {
     console.error("データ読み込み失敗", e);
@@ -299,16 +312,41 @@ $("#addExercise").addEventListener("click", async () => {
   renderExercises(name);
 });
 
+/* ---- 換算表示の更新 ---- */
+function updateConvHint(row) {
+  const v = row.querySelector(".set-weight").value;
+  const hint = row.querySelector(".conv-hint");
+  if (v === "" || isNaN(Number(v))) {
+    hint.textContent = "";
+    return;
+  }
+  const unit = state.settings.unit;
+  if (unit === "lb") {
+    hint.textContent = `≈ ${lbToKg(Number(v)).toFixed(1)} kg`;
+  } else {
+    hint.textContent = `≈ ${kgToLb(Number(v)).toFixed(1)} lb`;
+  }
+}
+
+function refreshAllConvHints() {
+  $("#unitLabel").textContent = state.settings.unit;
+  setsList.querySelectorAll(".set-row").forEach(updateConvHint);
+}
+
 /* ---- セット行 ---- */
 function addSetRow(weight = "", reps = "") {
   const row = document.createElement("div");
   row.className = "set-row";
   row.innerHTML = `
     <span class="set-no"></span>
-    <input type="number" class="set-weight" inputmode="decimal" min="0" step="0.5" value="${weight}" />
+    <div class="weight-cell">
+      <input type="number" class="set-weight" inputmode="decimal" min="0" step="0.5" value="${weight}" />
+      <span class="conv-hint"></span>
+    </div>
     <input type="number" class="set-reps" inputmode="numeric" min="0" step="1" value="${reps}" />
     <button class="del-set" title="削除">×</button>
   `;
+  row.querySelector(".set-weight").addEventListener("input", () => updateConvHint(row));
   row.querySelector(".del-set").addEventListener("click", () => {
     row.remove();
     renumberSets();
@@ -316,7 +354,20 @@ function addSetRow(weight = "", reps = "") {
   });
   setsList.appendChild(row);
   renumberSets();
+  updateConvHint(row);
 }
+
+/* ---- 単位切替（lb / kg） ---- */
+$$(".unit-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    state.settings.unit = btn.dataset.unit;
+    $$(".unit-btn").forEach((b) =>
+      b.classList.toggle("active", b.dataset.unit === state.settings.unit)
+    );
+    saveData();
+    refreshAllConvHints();
+  });
+});
 
 function renumberSets() {
   setsList.querySelectorAll(".set-row").forEach((r, i) => {
@@ -356,6 +407,7 @@ $("#saveRecord").addEventListener("click", () => {
     date,
     bodyPart,
     exercise,
+    unit: state.settings.unit,
     sets,
     memo: $("#recordMemo").value.trim(),
   });
@@ -404,8 +456,14 @@ function renderHistory() {
 
   historyList.innerHTML = records
     .map((r) => {
+      const unit = r.unit || "kg"; // 旧データはkg扱い
       const setsText = r.sets
-        .map((s, i) => `${i + 1}set: ${s.weight}kg × ${s.reps}回`)
+        .map((s, i) => {
+          const kg = toKg(s.weight, unit).toFixed(1);
+          const main = `${s.weight} ${unit}`;
+          const conv = unit === "lb" ? `（≈ ${kg} kg）` : "";
+          return `${i + 1}set: ${main}${conv} × ${s.reps}回`;
+        })
         .join("<br>");
       return `
       <div class="history-item">
@@ -445,15 +503,17 @@ $("#exportCsv").addEventListener("click", () => {
     alert("出力する記録がありません。");
     return;
   }
-  const header = ["日付", "部位", "種目", "セット番号", "重量(kg)", "回数", "メモ"];
+  const header = ["日付", "部位", "種目", "セット番号", "重量", "単位", "重量(kg換算)", "回数", "メモ"];
   const rows = [header];
 
   const sorted = [...state.records].sort((a, b) =>
     a.date < b.date ? -1 : a.date > b.date ? 1 : 0
   );
   sorted.forEach((r) => {
+    const unit = r.unit || "kg"; // 旧データはkg扱い
     r.sets.forEach((s, i) => {
-      rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, s.reps, r.memo]);
+      const kg = toKg(s.weight, unit).toFixed(1);
+      rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, unit, kg, s.reps, r.memo]);
     });
   });
 
@@ -486,6 +546,11 @@ function escapeHtml(str) {
    ========================================================= */
 function init() {
   $("#recordDate").value = todayStr();
+  // 保存済みの単位を反映
+  $$(".unit-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.unit === state.settings.unit)
+  );
+  $("#unitLabel").textContent = state.settings.unit;
   renderBodyParts();
   addSetRow();
   renderTimer();

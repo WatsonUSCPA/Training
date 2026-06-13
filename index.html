@@ -76,9 +76,16 @@
 
         <!-- セット入力 -->
         <div class="sets-area">
+          <div class="sets-toolbar">
+            <span>セット内容</span>
+            <div class="unit-toggle">
+              <button type="button" class="unit-btn active" data-unit="lb">lb</button>
+              <button type="button" class="unit-btn" data-unit="kg">kg</button>
+            </div>
+          </div>
           <div class="sets-header">
-            <span>セット</span>
-            <span>重量(kg)</span>
+            <span>#</span>
+            <span>重量(<span id="unitLabel">lb</span>)</span>
             <span>回数</span>
             <span></span>
           </div>
