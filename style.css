@@ -129,6 +129,25 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .timer-controls { display: flex; gap: 8px; }
 .timer-controls .btn { flex: 1; }
 
+/* ---- 前回の記録 ---- */
+.last-record {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: -4px 0 16px;
+  font-size: .9rem;
+}
+.last-record .lr-title { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
+.last-record .lr-sets { line-height: 1.7; }
+.last-record .lr-none { color: var(--muted); }
+.last-record .lr-reuse {
+  margin-top: 8px; padding: 5px 12px; font-size: .8rem; font-weight: 600;
+  background: transparent; border: 1px solid var(--primary); color: var(--primary);
+  border-radius: 999px; cursor: pointer;
+}
+
 /* ---- セット入力 ---- */
 .sets-area { margin-bottom: 16px; }
 

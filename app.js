@@ -279,9 +279,74 @@ function renderExercises(selected) {
       .join("");
     if (selected && list.includes(selected)) exerciseSelect.value = selected;
   }
+  updateLastRecord();
 }
 
 bodyPartSelect.addEventListener("change", () => renderExercises());
+exerciseSelect.addEventListener("change", updateLastRecord);
+
+/* ---- 前回の記録 ---- */
+// 指定した部位・種目で最も新しい記録を返す
+function findLastRecord(bodyPart, exercise) {
+  let best = null;
+  let bestIdx = -1;
+  state.records.forEach((r, idx) => {
+    if (r.bodyPart !== bodyPart || r.exercise !== exercise) return;
+    // 日付が新しい、または同日なら後から登録したものを優先
+    if (best === null || r.date > best.date || (r.date === best.date && idx > bestIdx)) {
+      best = r;
+      bestIdx = idx;
+    }
+  });
+  return best;
+}
+
+function updateLastRecord() {
+  const box = $("#lastRecord");
+  const part = bodyPartSelect.value;
+  const exercise = exerciseSelect.value;
+  if (!part || !exercise) {
+    box.hidden = true;
+    return;
+  }
+  const rec = findLastRecord(part, exercise);
+  box.hidden = false;
+  if (!rec) {
+    box.innerHTML = `<div class="lr-none">前回の記録はありません（初めての種目）</div>`;
+    return;
+  }
+  const unit = rec.unit || "kg"; // 旧データはkg扱い
+  const setsText = rec.sets
+    .map((s) => {
+      const conv =
+        unit === "lb"
+          ? ` <span style="color:var(--muted)">(≈${lbToKg(Number(s.weight)).toFixed(1)}kg)</span>`
+          : "";
+      return `${s.weight} ${unit} × ${s.reps}回${conv}`;
+    })
+    .join("<br>");
+  const [, m, d] = rec.date.split("-");
+  box.innerHTML = `
+    <div class="lr-title">前回（${Number(m)}/${Number(d)}）</div>
+    <div class="lr-sets">${setsText}</div>
+    <button type="button" class="lr-reuse" id="reuseLast">前回の内容を入力欄にコピー</button>
+  `;
+  $("#reuseLast").addEventListener("click", () => reuseLastRecord(rec));
+}
+
+// 前回の内容をセット入力欄へコピー
+function reuseLastRecord(rec) {
+  const unit = rec.unit || "kg";
+  // 単位を前回に合わせる
+  state.settings.unit = unit;
+  $$(".unit-btn").forEach((b) => b.classList.toggle("active", b.dataset.unit === unit));
+  $("#unitLabel").textContent = unit;
+  saveData();
+  // セット欄を前回の内容で作り直す
+  setsList.innerHTML = "";
+  rec.sets.forEach((s) => addSetRow(s.weight, s.reps));
+  if (setsList.children.length === 0) addSetRow();
+}
 
 // 部位を追加
 $("#addBodyPart").addEventListener("click", async () => {
@@ -417,6 +482,7 @@ $("#saveRecord").addEventListener("click", () => {
   $("#recordMemo").value = "";
   setsList.innerHTML = "";
   addSetRow();
+  updateLastRecord(); // 今保存した内容が「前回」として反映される
   alert("保存しました 💪");
 });
 
