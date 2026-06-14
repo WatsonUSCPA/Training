@@ -539,6 +539,62 @@ $("#saveRecord").addEventListener("click", () => {
 const historyList = $("#historyList");
 const historyFilter = $("#historyFilter");
 
+/* ---- カレンダー ---- */
+const calGrid = $("#calGrid");
+const calMonthLabel = $("#calMonth");
+const _now = new Date();
+let calYear = _now.getFullYear();
+let calMonth = _now.getMonth(); // 0-11
+let selectedDate = null; // "YYYY-MM-DD"。日付で絞り込み中の日
+
+function ymd(y, m, d) {
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+// 記録がある日付の集合
+function recordedDates() {
+  return new Set(state.records.map((r) => r.date));
+}
+
+function renderCalendar() {
+  calMonthLabel.textContent = `${calYear}年 ${calMonth + 1}月`;
+  const firstWeekday = new Date(calYear, calMonth, 1).getDay(); // 0=日
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const recorded = recordedDates();
+  const todayVal = todayStr();
+
+  let html = "";
+  for (let i = 0; i < firstWeekday; i++) {
+    html += `<button class="cal-day empty" disabled></button>`;
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = ymd(calYear, calMonth, d);
+    const cls = ["cal-day"];
+    if (recorded.has(ds)) cls.push("has-record");
+    if (ds === todayVal) cls.push("today");
+    if (ds === selectedDate) cls.push("selected");
+    html += `<button class="${cls.join(" ")}" data-date="${ds}">${d}</button>`;
+  }
+  calGrid.innerHTML = html;
+
+  calGrid.querySelectorAll(".cal-day[data-date]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const ds = btn.dataset.date;
+      selectedDate = selectedDate === ds ? null : ds; // 同じ日を再タップで解除
+      renderHistory();
+    });
+  });
+}
+
+$("#calPrev").addEventListener("click", () => {
+  if (--calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+$("#calNext").addEventListener("click", () => {
+  if (++calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
 function renderHistoryFilter() {
   const parts = getBodyParts();
   const current = historyFilter.value || "__all__";
@@ -552,22 +608,45 @@ function renderHistoryFilter() {
 
 historyFilter.addEventListener("change", renderHistory);
 
+function bindCalClear() {
+  const btn = $("#calClear");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      selectedDate = null;
+      renderHistory();
+    });
+  }
+}
+
 function renderHistory() {
   renderHistoryFilter();
+  renderCalendar();
   const filter = historyFilter.value;
   let records = [...state.records];
   if (filter && filter !== "__all__") {
     records = records.filter((r) => r.bodyPart === filter);
   }
+  if (selectedDate) {
+    records = records.filter((r) => r.date === selectedDate);
+  }
   // 日付の新しい順
   records.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
+  // 日付で絞り込み中の見出し（タップで解除）
+  let headerHtml = "";
+  if (selectedDate) {
+    const [, mm, dd] = selectedDate.split("-");
+    headerHtml = `<button class="cal-clear" id="calClear">📅 ${Number(mm)}/${Number(dd)} の記録を表示中 — タップで全期間に戻す</button>`;
+  }
+
   if (records.length === 0) {
-    historyList.innerHTML = `<div class="history-empty">まだ記録がありません。</div>`;
+    const msg = selectedDate ? "この日の記録はありません。" : "まだ記録がありません。";
+    historyList.innerHTML = headerHtml + `<div class="history-empty">${msg}</div>`;
+    bindCalClear();
     return;
   }
 
-  historyList.innerHTML = records
+  historyList.innerHTML = headerHtml + records
     .map((r) => {
       const unit = r.unit || "kg"; // 旧データはkg扱い
       const setsText = r.sets
@@ -592,6 +671,7 @@ function renderHistory() {
     })
     .join("");
 
+  bindCalClear();
   historyList.querySelectorAll(".hi-del").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (!confirm("この記録を削除しますか？")) return;

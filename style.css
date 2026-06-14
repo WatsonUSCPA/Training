@@ -187,6 +187,50 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 /* ---- 履歴 ---- */
 .history-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .history-toolbar h2 { margin: 0; }
+
+/* ---- カレンダー ---- */
+.calendar {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-month { font-weight: 700; font-size: 1rem; }
+.cal-nav {
+  background: transparent; border: 1px solid var(--border); color: var(--text);
+  width: 36px; height: 32px; border-radius: 8px; font-size: 1.1rem; cursor: pointer;
+}
+.cal-weekdays, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-weekdays { margin-bottom: 4px; }
+.cal-weekdays span { text-align: center; font-size: .7rem; color: var(--muted); }
+.cal-weekdays span:first-child { color: #fb7185; }
+.cal-weekdays span:last-child { color: #60a5fa; }
+
+.cal-day {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; border-radius: 8px;
+  background: transparent; border: none; color: var(--text); cursor: pointer;
+}
+.cal-day.empty { visibility: hidden; cursor: default; }
+.cal-day.today { outline: 1px solid var(--muted); }
+.cal-day.has-record { font-weight: 700; }
+.cal-day.has-record::after {
+  content: ""; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--primary);
+}
+.cal-day.selected { background: var(--primary-dark); color: #042f43; }
+.cal-day.selected.has-record::after { background: #042f43; }
+
+.cal-clear {
+  display: block; width: 100%; margin-top: 10px; padding: 7px;
+  background: transparent; border: 1px dashed var(--border); border-radius: 8px;
+  color: var(--muted); font-size: .8rem; cursor: pointer;
+}
+
 .history-list { display: flex; flex-direction: column; gap: 10px; }
 .history-empty { color: var(--muted); text-align: center; padding: 30px 0; }
 
