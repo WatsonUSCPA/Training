@@ -142,6 +142,13 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .last-record .lr-title { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
 .last-record .lr-sets { line-height: 1.7; }
 .last-record .lr-none { color: var(--muted); }
+.last-record .lr-order { font-size: .78rem; color: var(--muted); margin-top: 8px; }
+.last-record .lr-order b { color: var(--text); }
+.last-record .lr-flow {
+  font-size: .8rem; margin-top: 3px; line-height: 1.5;
+  padding-top: 6px; border-top: 1px dashed var(--border);
+}
+.last-record .lr-current { color: var(--primary); font-weight: 700; }
 .last-record .lr-reuse {
   margin-top: 8px; padding: 5px 12px; font-size: .8rem; font-weight: 600;
   background: transparent; border: 1px solid var(--primary); color: var(--primary);

@@ -341,9 +341,35 @@ function updateLastRecord() {
     })
     .join("<br>");
   const [, m, d] = rec.date.split("-");
+
+  // 前回の記録が「その日の何種目目」だったか、当日の実施順を求める
+  // （記録は実施順に保存されている前提）
+  const dayRecords = state.records
+    .map((r, idx) => ({ r, idx }))
+    .filter((x) => x.r.date === rec.date)
+    .sort((a, b) => a.idx - b.idx);
+  const pos = dayRecords.findIndex((x) => x.r === rec);
+  const orderNo = pos + 1;
+  const total = dayRecords.length;
+
+  let flowHtml = "";
+  if (total > 1) {
+    const flow = dayRecords
+      .map((x, i) =>
+        i === pos
+          ? `<span class="lr-current">${escapeHtml(x.r.exercise)}</span>`
+          : escapeHtml(x.r.exercise)
+      )
+      .join(" → ");
+    flowHtml = `
+      <div class="lr-order">前回はこの日の <b>${orderNo}種目目</b>（全${total}種目）</div>
+      <div class="lr-flow">${flow}</div>`;
+  }
+
   box.innerHTML = `
     <div class="lr-title">前回（${Number(m)}/${Number(d)}）</div>
     <div class="lr-sets">${setsText}</div>
+    ${flowHtml}
     <button type="button" class="lr-reuse" id="reuseLast">前回の内容を入力欄にコピー</button>
   `;
   $("#reuseLast").addEventListener("click", () => reuseLastRecord(rec));
