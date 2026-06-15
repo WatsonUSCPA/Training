@@ -279,3 +279,18 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .modal-box h3 { margin: 0 0 14px; font-size: 1.05rem; }
 .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
 .modal-actions .btn { flex: 1; }
+
+/* モーダル内の種目タイプ選択 */
+.modal-type { margin-top: 14px; }
+.modal-type-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 6px; }
+.mtype-toggle { display: flex; gap: 8px; }
+.mtype-btn {
+  flex: 1; padding: 9px; border: 1px solid var(--border); border-radius: 10px;
+  background: transparent; color: var(--muted); font-size: .85rem; font-weight: 600; cursor: pointer;
+}
+.mtype-btn.active { background: var(--surface-2); color: var(--text); border-color: var(--primary); }
+
+/* 時間モードのセット入力（重量×回数 → 時間の2カラム構成） */
+.sets-area.time-mode .unit-toggle { display: none; }
+.sets-area.time-mode .sets-header,
+.sets-area.time-mode .set-row { grid-template-columns: 32px 1fr 36px; }

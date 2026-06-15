@@ -18,6 +18,8 @@ const DEFAULT_DATA = {
   },
   // 記録の配列
   records: [],
+  // 種目名 -> 記録タイプ（"weight" 重量×回数 / "time" 時間秒）
+  exerciseTypes: {},
   // 設定（入力する重量の単位）
   settings: { unit: "lb" },
 };
@@ -32,6 +34,20 @@ function toKg(weight, unit) {
   return unit === "kg" ? Number(weight) : lbToKg(Number(weight));
 }
 
+// 種目の記録タイプ（"weight" or "time"）。未設定は重量×回数
+function getExerciseType(name) {
+  return state.exerciseTypes[name] === "time" ? "time" : "weight";
+}
+
+// 秒数を「1分30秒」形式に（60秒未満は空文字）
+function formatSeconds(sec) {
+  const s = Number(sec);
+  if (s < 60) return "";
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r > 0 ? `${m}分${r}秒` : `${m}分`;
+}
+
 /* ---------- データ層 ---------- */
 function loadData() {
   try {
@@ -40,6 +56,7 @@ function loadData() {
     const data = JSON.parse(raw);
     if (!data.exercises) data.exercises = {};
     if (!Array.isArray(data.records)) data.records = [];
+    if (!data.exerciseTypes) data.exerciseTypes = {};
     if (!data.settings) data.settings = { unit: "lb" };
     return data;
   } catch (e) {
@@ -212,13 +229,31 @@ $("#setCustomInterval").addEventListener("click", () => {
 /* =========================================================
    汎用モーダル（部位 / 種目 の名前入力）
    ========================================================= */
-function promptModal(title, placeholder = "") {
+// opts.withType を渡すと「重量×回数 / 時間」の選択UIを表示し、
+// 解決値を { name, type } で返す。それ以外は名前の文字列（or null）を返す。
+function promptModal(title, placeholder = "", opts = {}) {
   return new Promise((resolve) => {
     const modal = $("#modal");
     const input = $("#modalInput");
+    const typeRow = $("#modalType");
     $("#modalTitle").textContent = title;
     input.value = "";
     input.placeholder = placeholder;
+
+    let chosenType = "weight";
+    if (opts.withType) {
+      typeRow.hidden = false;
+      $$(".mtype-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.mtype === "weight");
+        b.onclick = () => {
+          chosenType = b.dataset.mtype;
+          $$(".mtype-btn").forEach((x) => x.classList.toggle("active", x === b));
+        };
+      });
+    } else {
+      typeRow.hidden = true;
+    }
+
     modal.hidden = false;
     setTimeout(() => input.focus(), 50);
 
@@ -227,23 +262,22 @@ function promptModal(title, placeholder = "") {
       $("#modalOk").onclick = null;
       $("#modalCancel").onclick = null;
       input.onkeydown = null;
+      $$(".mtype-btn").forEach((b) => (b.onclick = null));
+    };
+    const finish = (value) => {
+      cleanup();
+      resolve(value);
     };
     const ok = () => {
       const val = input.value.trim();
-      cleanup();
-      resolve(val || null);
+      if (opts.withType) finish(val ? { name: val, type: chosenType } : null);
+      else finish(val || null);
     };
     $("#modalOk").onclick = ok;
-    $("#modalCancel").onclick = () => {
-      cleanup();
-      resolve(null);
-    };
+    $("#modalCancel").onclick = () => finish(null);
     input.onkeydown = (e) => {
       if (e.key === "Enter") ok();
-      if (e.key === "Escape") {
-        cleanup();
-        resolve(null);
-      }
+      if (e.key === "Escape") finish(null);
     };
   });
 }
@@ -317,6 +351,7 @@ function findLastRecord(bodyPart, exercise) {
 }
 
 function updateLastRecord() {
+  applyExerciseType(); // 種目に応じて入力UIを切り替える
   const box = $("#lastRecord");
   const part = bodyPartSelect.value;
   const exercise = exerciseSelect.value;
@@ -330,16 +365,27 @@ function updateLastRecord() {
     box.innerHTML = `<div class="lr-none">前回の記録はありません（初めての種目）</div>`;
     return;
   }
-  const unit = rec.unit || "kg"; // 旧データはkg扱い
-  const setsText = rec.sets
-    .map((s) => {
-      const conv =
-        unit === "lb"
-          ? ` <span style="color:var(--muted)">(≈${lbToKg(Number(s.weight)).toFixed(1)}kg)</span>`
-          : "";
-      return `${s.weight} ${unit} × ${s.reps}回${conv}`;
-    })
-    .join("<br>");
+  const recType = rec.type || "weight";
+  let setsText;
+  if (recType === "time") {
+    setsText = rec.sets
+      .map((s) => {
+        const f = formatSeconds(s.seconds);
+        return `${s.seconds} 秒${f ? `（${f}）` : ""}`;
+      })
+      .join("<br>");
+  } else {
+    const unit = rec.unit || "kg"; // 旧データはkg扱い
+    setsText = rec.sets
+      .map((s) => {
+        const conv =
+          unit === "lb"
+            ? ` <span style="color:var(--muted)">(≈${lbToKg(Number(s.weight)).toFixed(1)}kg)</span>`
+            : "";
+        return `${s.weight} ${unit} × ${s.reps}回${conv}`;
+      })
+      .join("<br>");
+  }
   const [, m, d] = rec.date.split("-");
 
   // 前回の記録が「その日の何種目目」だったか、当日の実施順を求める
@@ -377,15 +423,18 @@ function updateLastRecord() {
 
 // 前回の内容をセット入力欄へコピー
 function reuseLastRecord(rec) {
-  const unit = rec.unit || "kg";
-  // 単位を前回に合わせる
-  state.settings.unit = unit;
-  $$(".unit-btn").forEach((b) => b.classList.toggle("active", b.dataset.unit === unit));
-  $("#unitLabel").textContent = unit;
-  saveData();
-  // セット欄を前回の内容で作り直す
+  // セット欄を前回の内容で作り直す（種目タイプに応じて）
   setsList.innerHTML = "";
-  rec.sets.forEach((s) => addSetRow(s.weight, s.reps));
+  if (currentType === "time") {
+    rec.sets.forEach((s) => addSetRow(s.seconds));
+  } else {
+    const unit = rec.unit || "kg";
+    state.settings.unit = unit; // 単位を前回に合わせる
+    $$(".unit-btn").forEach((b) => b.classList.toggle("active", b.dataset.unit === unit));
+    $("#unitLabel").textContent = unit;
+    saveData();
+    rec.sets.forEach((s) => addSetRow(s.weight, s.reps));
+  }
   if (setsList.children.length === 0) addSetRow();
 }
 
@@ -410,12 +459,15 @@ async function addNewExercise(prev) {
     renderExercises(prev);
     return;
   }
-  const name = await promptModal(
+  const result = await promptModal(
     `「${part}」に新しい種目を追加`,
-    "種目名（例：インクラインベンチプレス）"
+    "種目名（例：プランク、ベンチプレス）",
+    { withType: true }
   );
+  const name = result && result.name;
   if (name && !state.exercises[part].includes(name)) {
     state.exercises[part].push(name);
+    state.exerciseTypes[name] = result.type; // 記録タイプを保存
     saveData();
   }
   // 追加した種目を選択。キャンセル時は元の選択に戻す
@@ -424,9 +476,38 @@ async function addNewExercise(prev) {
 
 $("#addExercise").addEventListener("click", () => addNewExercise(currentExercise));
 
+// 記録中の種目タイプ（"weight" / "time"）
+let currentType = "weight";
+
+// 選択中の種目に応じてセット入力UI（重量×回数 / 時間）を切り替える
+function applyExerciseType() {
+  const ex = exerciseSelect.value;
+  const type = ex && ex !== ADD_NEW ? getExerciseType(ex) : "weight";
+  if (type === currentType) return;
+  currentType = type;
+  setSetsModeUI();
+  setsList.innerHTML = "";
+  addSetRow();
+}
+
+function setSetsModeUI() {
+  const area = $("#setsArea");
+  const header = $("#setsHeader");
+  if (currentType === "time") {
+    area.classList.add("time-mode");
+    header.innerHTML = `<span>#</span><span>時間（秒）</span><span></span>`;
+  } else {
+    area.classList.remove("time-mode");
+    header.innerHTML =
+      `<span>#</span><span>重量（<span id="unitLabel">${state.settings.unit}</span>）</span><span>回数</span><span></span>`;
+  }
+}
+
 /* ---- 換算表示の更新 ---- */
 function updateConvHint(row) {
-  const v = row.querySelector(".set-weight").value;
+  const input = row.querySelector(".set-weight");
+  if (!input) return; // 時間モードの行
+  const v = input.value;
   const hint = row.querySelector(".conv-hint");
   if (v === "" || isNaN(Number(v))) {
     hint.textContent = "";
@@ -440,25 +521,45 @@ function updateConvHint(row) {
   }
 }
 
+// 時間モードの秒数 → 「1分30秒」表示
+function updateSecHint(row) {
+  const v = row.querySelector(".set-seconds").value;
+  const hint = row.querySelector(".conv-hint");
+  hint.textContent = v === "" || isNaN(Number(v)) ? "" : (formatSeconds(v) ? `= ${formatSeconds(v)}` : "");
+}
+
 function refreshAllConvHints() {
   $("#unitLabel").textContent = state.settings.unit;
   setsList.querySelectorAll(".set-row").forEach(updateConvHint);
 }
 
 /* ---- セット行 ---- */
-function addSetRow(weight = "", reps = "") {
+// 重量モード: addSetRow(weight, reps) / 時間モード: addSetRow(seconds)
+function addSetRow(a = "", b = "") {
   const row = document.createElement("div");
   row.className = "set-row";
-  row.innerHTML = `
-    <span class="set-no"></span>
-    <div class="weight-cell">
-      <input type="number" class="set-weight" inputmode="decimal" min="0" step="0.5" value="${weight}" />
-      <span class="conv-hint"></span>
-    </div>
-    <input type="number" class="set-reps" inputmode="numeric" min="0" step="1" value="${reps}" />
-    <button class="del-set" title="削除">×</button>
-  `;
-  row.querySelector(".set-weight").addEventListener("input", () => updateConvHint(row));
+  if (currentType === "time") {
+    row.innerHTML = `
+      <span class="set-no"></span>
+      <div class="weight-cell">
+        <input type="number" class="set-seconds" inputmode="numeric" min="0" step="1" value="${a}" />
+        <span class="conv-hint"></span>
+      </div>
+      <button class="del-set" title="削除">×</button>
+    `;
+    row.querySelector(".set-seconds").addEventListener("input", () => updateSecHint(row));
+  } else {
+    row.innerHTML = `
+      <span class="set-no"></span>
+      <div class="weight-cell">
+        <input type="number" class="set-weight" inputmode="decimal" min="0" step="0.5" value="${a}" />
+        <span class="conv-hint"></span>
+      </div>
+      <input type="number" class="set-reps" inputmode="numeric" min="0" step="1" value="${b}" />
+      <button class="del-set" title="削除">×</button>
+    `;
+    row.querySelector(".set-weight").addEventListener("input", () => updateConvHint(row));
+  }
   row.querySelector(".del-set").addEventListener("click", () => {
     row.remove();
     renumberSets();
@@ -466,7 +567,8 @@ function addSetRow(weight = "", reps = "") {
   });
   setsList.appendChild(row);
   renumberSets();
-  updateConvHint(row);
+  if (currentType === "time") updateSecHint(row);
+  else updateConvHint(row);
 }
 
 /* ---- 単位切替（lb / kg） ---- */
@@ -501,17 +603,27 @@ $("#saveRecord").addEventListener("click", () => {
   }
 
   const sets = [];
-  setsList.querySelectorAll(".set-row").forEach((r) => {
-    const w = r.querySelector(".set-weight").value;
-    const reps = r.querySelector(".set-reps").value;
-    if (w !== "" || reps !== "") {
-      sets.push({ weight: w === "" ? 0 : Number(w), reps: reps === "" ? 0 : Number(reps) });
+  if (currentType === "time") {
+    setsList.querySelectorAll(".set-row").forEach((r) => {
+      const sec = r.querySelector(".set-seconds").value;
+      if (sec !== "") sets.push({ seconds: Number(sec) });
+    });
+    if (sets.length === 0) {
+      alert("時間（秒）を入力してください。");
+      return;
     }
-  });
-
-  if (sets.length === 0) {
-    alert("少なくとも1セット入力してください。");
-    return;
+  } else {
+    setsList.querySelectorAll(".set-row").forEach((r) => {
+      const w = r.querySelector(".set-weight").value;
+      const reps = r.querySelector(".set-reps").value;
+      if (w !== "" || reps !== "") {
+        sets.push({ weight: w === "" ? 0 : Number(w), reps: reps === "" ? 0 : Number(reps) });
+      }
+    });
+    if (sets.length === 0) {
+      alert("少なくとも1セット入力してください。");
+      return;
+    }
   }
 
   state.records.push({
@@ -519,7 +631,8 @@ $("#saveRecord").addEventListener("click", () => {
     date,
     bodyPart,
     exercise,
-    unit: state.settings.unit,
+    type: currentType,
+    unit: currentType === "time" ? null : state.settings.unit,
     sets,
     memo: $("#recordMemo").value.trim(),
   });
@@ -648,15 +761,25 @@ function renderHistory() {
 
   historyList.innerHTML = headerHtml + records
     .map((r) => {
-      const unit = r.unit || "kg"; // 旧データはkg扱い
-      const setsText = r.sets
-        .map((s, i) => {
-          const kg = toKg(s.weight, unit).toFixed(1);
-          const main = `${s.weight} ${unit}`;
-          const conv = unit === "lb" ? `（≈ ${kg} kg）` : "";
-          return `${i + 1}set: ${main}${conv} × ${s.reps}回`;
-        })
-        .join("<br>");
+      let setsText;
+      if ((r.type || "weight") === "time") {
+        setsText = r.sets
+          .map((s, i) => {
+            const f = formatSeconds(s.seconds);
+            return `${i + 1}set: ${s.seconds}秒${f ? `（${f}）` : ""}`;
+          })
+          .join("<br>");
+      } else {
+        const unit = r.unit || "kg"; // 旧データはkg扱い
+        setsText = r.sets
+          .map((s, i) => {
+            const kg = toKg(s.weight, unit).toFixed(1);
+            const main = `${s.weight} ${unit}`;
+            const conv = unit === "lb" ? `（≈ ${kg} kg）` : "";
+            return `${i + 1}set: ${main}${conv} × ${s.reps}回`;
+          })
+          .join("<br>");
+      }
       return `
       <div class="history-item">
         <div class="hi-top">
@@ -696,18 +819,24 @@ $("#exportCsv").addEventListener("click", () => {
     alert("出力する記録がありません。");
     return;
   }
-  const header = ["日付", "部位", "種目", "セット番号", "重量", "単位", "重量(kg換算)", "回数", "メモ"];
+  const header = ["日付", "部位", "種目", "セット番号", "重量", "単位", "重量(kg換算)", "回数", "時間(秒)", "メモ"];
   const rows = [header];
 
   const sorted = [...state.records].sort((a, b) =>
     a.date < b.date ? -1 : a.date > b.date ? 1 : 0
   );
   sorted.forEach((r) => {
-    const unit = r.unit || "kg"; // 旧データはkg扱い
-    r.sets.forEach((s, i) => {
-      const kg = toKg(s.weight, unit).toFixed(1);
-      rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, unit, kg, s.reps, r.memo]);
-    });
+    if ((r.type || "weight") === "time") {
+      r.sets.forEach((s, i) => {
+        rows.push([r.date, r.bodyPart, r.exercise, i + 1, "", "", "", "", s.seconds, r.memo]);
+      });
+    } else {
+      const unit = r.unit || "kg"; // 旧データはkg扱い
+      r.sets.forEach((s, i) => {
+        const kg = toKg(s.weight, unit).toFixed(1);
+        rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, unit, kg, s.reps, "", r.memo]);
+      });
+    }
   });
 
   const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");

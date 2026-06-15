@@ -78,7 +78,7 @@
         <div id="lastRecord" class="last-record" hidden></div>
 
         <!-- セット入力 -->
-        <div class="sets-area">
+        <div class="sets-area" id="setsArea">
           <div class="sets-toolbar">
             <span>セット内容</span>
             <div class="unit-toggle">
@@ -86,7 +86,7 @@
               <button type="button" class="unit-btn" data-unit="kg">kg</button>
             </div>
           </div>
-          <div class="sets-header">
+          <div class="sets-header" id="setsHeader">
             <span>#</span>
             <span>重量(<span id="unitLabel">lb</span>)</span>
             <span>回数</span>
@@ -150,6 +150,13 @@
     <div class="modal-box">
       <h3 id="modalTitle"></h3>
       <input type="text" id="modalInput" />
+      <div id="modalType" class="modal-type" hidden>
+        <span class="modal-type-label">記録のしかた</span>
+        <div class="mtype-toggle">
+          <button type="button" class="mtype-btn active" data-mtype="weight">重量 × 回数</button>
+          <button type="button" class="mtype-btn" data-mtype="time">時間（秒）</button>
+        </div>
+      </div>
       <div class="modal-actions">
         <button id="modalCancel" class="btn btn-ghost">キャンセル</button>
         <button id="modalOk" class="btn btn-primary">OK</button>
