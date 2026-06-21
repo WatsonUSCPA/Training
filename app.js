@@ -382,7 +382,8 @@ function updateLastRecord() {
           unit === "lb"
             ? ` <span style="color:var(--muted)">(≈${lbToKg(Number(s.weight)).toFixed(1)}kg)</span>`
             : "";
-        return `${s.weight} ${unit} × ${s.reps}回${conv}`;
+        const drop = s.drop ? ` <span class="drop-badge">🔻ドロップ</span>` : "";
+        return `${s.weight} ${unit} × ${s.reps}回${conv}${drop}`;
       })
       .join("<br>");
   }
@@ -433,7 +434,7 @@ function reuseLastRecord(rec) {
     $$(".unit-btn").forEach((b) => b.classList.toggle("active", b.dataset.unit === unit));
     $("#unitLabel").textContent = unit;
     saveData();
-    rec.sets.forEach((s) => addSetRow(s.weight, s.reps));
+    rec.sets.forEach((s) => addSetRow(s.weight, s.reps, !!s.drop));
   }
   if (setsList.children.length === 0) addSetRow();
 }
@@ -499,7 +500,7 @@ function setSetsModeUI() {
   } else {
     area.classList.remove("time-mode");
     header.innerHTML =
-      `<span>#</span><span>重量（<span id="unitLabel">${state.settings.unit}</span>）</span><span>回数</span><span></span>`;
+      `<span>#</span><span>重量（<span id="unitLabel">${state.settings.unit}</span>）</span><span>回数</span><span>🔻</span><span></span>`;
   }
 }
 
@@ -534,8 +535,8 @@ function refreshAllConvHints() {
 }
 
 /* ---- セット行 ---- */
-// 重量モード: addSetRow(weight, reps) / 時間モード: addSetRow(seconds)
-function addSetRow(a = "", b = "") {
+// 重量モード: addSetRow(weight, reps, drop) / 時間モード: addSetRow(seconds)
+function addSetRow(a = "", b = "", drop = false) {
   const row = document.createElement("div");
   row.className = "set-row";
   if (currentType === "time") {
@@ -556,9 +557,13 @@ function addSetRow(a = "", b = "") {
         <span class="conv-hint"></span>
       </div>
       <input type="number" class="set-reps" inputmode="numeric" min="0" step="1" value="${b}" />
+      <button type="button" class="drop-btn${drop ? " active" : ""}" title="ドロップセット">🔻</button>
       <button class="del-set" title="削除">×</button>
     `;
     row.querySelector(".set-weight").addEventListener("input", () => updateConvHint(row));
+    row
+      .querySelector(".drop-btn")
+      .addEventListener("click", (e) => e.currentTarget.classList.toggle("active"));
   }
   row.querySelector(".del-set").addEventListener("click", () => {
     row.remove();
@@ -617,7 +622,9 @@ $("#saveRecord").addEventListener("click", () => {
       const w = r.querySelector(".set-weight").value;
       const reps = r.querySelector(".set-reps").value;
       if (w !== "" || reps !== "") {
-        sets.push({ weight: w === "" ? 0 : Number(w), reps: reps === "" ? 0 : Number(reps) });
+        const set = { weight: w === "" ? 0 : Number(w), reps: reps === "" ? 0 : Number(reps) };
+        if (r.querySelector(".drop-btn").classList.contains("active")) set.drop = true;
+        sets.push(set);
       }
     });
     if (sets.length === 0) {
@@ -776,7 +783,8 @@ function renderHistory() {
             const kg = toKg(s.weight, unit).toFixed(1);
             const main = `${s.weight} ${unit}`;
             const conv = unit === "lb" ? `（≈ ${kg} kg）` : "";
-            return `${i + 1}set: ${main}${conv} × ${s.reps}回`;
+            const drop = s.drop ? ` <span class="drop-badge">🔻ドロップ</span>` : "";
+            return `${i + 1}set: ${main}${conv} × ${s.reps}回${drop}`;
           })
           .join("<br>");
       }
@@ -819,7 +827,7 @@ $("#exportCsv").addEventListener("click", () => {
     alert("出力する記録がありません。");
     return;
   }
-  const header = ["日付", "部位", "種目", "セット番号", "重量", "単位", "重量(kg換算)", "回数", "時間(秒)", "メモ"];
+  const header = ["日付", "部位", "種目", "セット番号", "重量", "単位", "重量(kg換算)", "回数", "時間(秒)", "ドロップ", "メモ"];
   const rows = [header];
 
   const sorted = [...state.records].sort((a, b) =>
@@ -828,13 +836,14 @@ $("#exportCsv").addEventListener("click", () => {
   sorted.forEach((r) => {
     if ((r.type || "weight") === "time") {
       r.sets.forEach((s, i) => {
-        rows.push([r.date, r.bodyPart, r.exercise, i + 1, "", "", "", "", s.seconds, r.memo]);
+        rows.push([r.date, r.bodyPart, r.exercise, i + 1, "", "", "", "", s.seconds, "", r.memo]);
       });
     } else {
       const unit = r.unit || "kg"; // 旧データはkg扱い
       r.sets.forEach((s, i) => {
         const kg = toKg(s.weight, unit).toFixed(1);
-        rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, unit, kg, s.reps, "", r.memo]);
+        const drop = s.drop ? "✓" : "";
+        rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, unit, kg, s.reps, "", drop, r.memo]);
       });
     }
   });

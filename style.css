@@ -169,8 +169,8 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 
 .sets-header, .set-row {
   display: grid;
-  grid-template-columns: 32px 1fr 1fr 36px;
-  gap: 8px;
+  grid-template-columns: 24px 1fr 1fr 44px 26px;
+  gap: 6px;
   align-items: center;
 }
 .sets-header { font-size: .8rem; color: var(--muted); margin-bottom: 8px; padding: 0 2px; }
@@ -183,6 +183,19 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 /* 重量セル＋換算表示 */
 .weight-cell { display: flex; flex-direction: column; gap: 2px; }
 .conv-hint { font-size: .72rem; color: var(--primary); min-height: .9em; padding-left: 2px; }
+
+/* ドロップセット切替ボタン */
+.drop-btn {
+  height: 38px; padding: 0;
+  background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--muted); font-size: 1rem; cursor: pointer; opacity: .45;
+}
+.drop-btn.active { opacity: 1; background: #f59e0b22; border-color: #f59e0b; }
+/* 時間モードではドロップ列を出さない */
+.sets-area.time-mode .sets-header span:nth-child(4) { display: none; }
+
+/* 履歴のドロップ表示 */
+.drop-badge { color: #f59e0b; font-size: .75rem; font-weight: 700; margin-left: 4px; }
 
 /* ---- 履歴 ---- */
 .history-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
