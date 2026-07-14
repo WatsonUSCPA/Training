@@ -676,11 +676,21 @@ function recordedDates() {
   return new Set(state.records.map((r) => r.date));
 }
 
+// 日付 -> その日にやった部位（重複なし・記録順）
+function datePartsMap() {
+  const map = {};
+  state.records.forEach((r) => {
+    if (!map[r.date]) map[r.date] = [];
+    if (!map[r.date].includes(r.bodyPart)) map[r.date].push(r.bodyPart);
+  });
+  return map;
+}
+
 function renderCalendar() {
   calMonthLabel.textContent = `${calYear}年 ${calMonth + 1}月`;
   const firstWeekday = new Date(calYear, calMonth, 1).getDay(); // 0=日
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const recorded = recordedDates();
+  const partsByDate = datePartsMap();
   const todayVal = todayStr();
 
   let html = "";
@@ -689,11 +699,15 @@ function renderCalendar() {
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = ymd(calYear, calMonth, d);
+    const parts = partsByDate[ds];
     const cls = ["cal-day"];
-    if (recorded.has(ds)) cls.push("has-record");
+    if (parts) cls.push("has-record");
     if (ds === todayVal) cls.push("today");
     if (ds === selectedDate) cls.push("selected");
-    html += `<button class="${cls.join(" ")}" data-date="${ds}">${d}</button>`;
+    const label = parts
+      ? `<span class="cal-label">${escapeHtml(parts.join("・"))}</span>`
+      : "";
+    html += `<button class="${cls.join(" ")}" data-date="${ds}"><span class="cal-num">${d}</span>${label}</button>`;
   }
   calGrid.innerHTML = html;
 

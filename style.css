@@ -223,20 +223,24 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 
 .cal-day {
   position: relative;
-  aspect-ratio: 1 / 1;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .85rem; border-radius: 8px;
+  min-height: 48px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 1px; padding: 3px 2px;
+  border-radius: 8px;
   background: transparent; border: none; color: var(--text); cursor: pointer;
+}
+.cal-num { font-size: .82rem; line-height: 1.1; }
+.cal-label {
+  font-size: .58rem; line-height: 1.15; color: var(--primary);
+  text-align: center; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .cal-day.empty { visibility: hidden; cursor: default; }
 .cal-day.today { outline: 1px solid var(--muted); }
-.cal-day.has-record { font-weight: 700; }
-.cal-day.has-record::after {
-  content: ""; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
-  width: 5px; height: 5px; border-radius: 50%; background: var(--primary);
-}
+.cal-day.has-record .cal-num { font-weight: 700; }
+.cal-day.has-record { background: rgba(56, 189, 248, .08); }
 .cal-day.selected { background: var(--primary-dark); color: #042f43; }
-.cal-day.selected.has-record::after { background: #042f43; }
+.cal-day.selected .cal-label { color: #042f43; }
 
 .cal-clear {
   display: block; width: 100%; margin-top: 10px; padding: 7px;
