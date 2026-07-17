@@ -115,14 +115,14 @@
         <div class="run-progress">
           <div class="run-progress-top">
             <span class="run-current" id="runCurrentKm">0.0</span>
-            <span class="run-goal">km / 目標 <b id="runGoalKm">12</b> km</span>
+            <span class="run-goal">mile / 目標 <b id="runGoalKm">8</b> mile</span>
           </div>
           <div class="run-bar"><div class="run-bar-fill" id="runBarFill"></div></div>
           <div class="run-progress-sub" id="runProgressSub"></div>
         </div>
 
         <label class="field">
-          <span>1週間の目標距離（km）</span>
+          <span>1週間の目標距離（mile）</span>
           <div class="row">
             <input type="number" id="runGoalInput" min="0" step="0.5" inputmode="decimal" />
             <button id="saveRunGoal" class="btn btn-ghost btn-sm">保存</button>
@@ -140,8 +140,8 @@
 
         <div class="run-inputs">
           <label class="field">
-            <span>距離（km）</span>
-            <input type="number" id="runKm" min="0" step="0.1" inputmode="decimal" placeholder="例：5" />
+            <span>距離（mile）</span>
+            <input type="number" id="runKm" min="0" step="0.1" inputmode="decimal" placeholder="例：3" />
           </label>
           <label class="field">
             <span>時間（分・任意）</span>
@@ -216,7 +216,7 @@
         <div class="mtype-toggle">
           <button type="button" class="mtype-btn active" data-mtype="weight">重量 × 回数</button>
           <button type="button" class="mtype-btn" data-mtype="time">時間（秒）</button>
-          <button type="button" class="mtype-btn" data-mtype="distance">距離（km）</button>
+          <button type="button" class="mtype-btn" data-mtype="distance">距離（mile）</button>
         </div>
       </div>
       <div class="modal-actions">
