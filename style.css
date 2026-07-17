@@ -311,3 +311,56 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .sets-area.time-mode .unit-toggle { display: none; }
 .sets-area.time-mode .sets-header,
 .sets-area.time-mode .set-row { grid-template-columns: 32px 1fr 36px; }
+
+/* 距離モードのセット入力（距離km × 時間分の3カラム構成） */
+.sets-area.distance-mode .unit-toggle { display: none; }
+.sets-area.distance-mode .sets-header,
+.sets-area.distance-mode .set-row { grid-template-columns: 32px 1fr 1fr 36px; }
+
+/* 種目タイプが3つになったので折り返し許可 */
+.mtype-toggle { flex-wrap: wrap; }
+.mtype-btn { flex: 1 1 30%; padding: 9px 4px; }
+
+/* ============ ランニングタブ ============ */
+.run-week-range { font-size: .8rem; color: var(--muted); margin-bottom: 14px; }
+
+.run-progress-top { display: flex; align-items: baseline; gap: 6px; }
+.run-current { font-size: 2.2rem; font-weight: 700; color: var(--primary); line-height: 1; }
+.run-goal { font-size: .95rem; color: var(--muted); }
+.run-goal b { color: var(--text); }
+
+.run-bar {
+  margin: 12px 0 8px;
+  height: 12px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.run-bar-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+  border-radius: 999px;
+  transition: width .35s ease;
+}
+.run-bar-fill.done { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.run-progress-sub { font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+
+.run-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.run-inputs .field { margin-bottom: 0; }
+.run-pace { font-size: .8rem; color: var(--primary); margin: 8px 0 4px; }
+
+.run-week-list { display: flex; flex-direction: column; gap: 8px; }
+.run-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+.run-item-date { font-size: .8rem; color: var(--muted); min-width: 40px; }
+.run-item-km { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.run-item-km span { font-size: .75rem; font-weight: 400; color: var(--muted); }
+.run-item-sub { font-size: .78rem; color: var(--muted); text-align: right; }

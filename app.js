@@ -15,13 +15,14 @@ const DEFAULT_DATA = {
     "腕": ["アームカール", "トライセプスエクステンション"],
     "脚": ["スクワット", "レッグプレス"],
     "腹": ["クランチ", "レッグレイズ"],
+    "有酸素": ["ランニング"],
   },
   // 記録の配列
   records: [],
-  // 種目名 -> 記録タイプ（"weight" 重量×回数 / "time" 時間秒）
-  exerciseTypes: {},
-  // 設定（入力する重量の単位）
-  settings: { unit: "lb" },
+  // 種目名 -> 記録タイプ（"weight" 重量×回数 / "time" 時間秒 / "distance" 距離km）
+  exerciseTypes: { "ランニング": "distance" },
+  // 設定（入力する重量の単位 / 1週間の目標ラン距離km）
+  settings: { unit: "lb", weeklyRunGoalKm: 12 },
 };
 
 // 重量の換算（1 lb = 0.45359237 kg）
@@ -34,9 +35,22 @@ function toKg(weight, unit) {
   return unit === "kg" ? Number(weight) : lbToKg(Number(weight));
 }
 
-// 種目の記録タイプ（"weight" or "time"）。未設定は重量×回数
+// 種目の記録タイプ（"weight" / "time" / "distance"）。未設定は重量×回数
 function getExerciseType(name) {
-  return state.exerciseTypes[name] === "time" ? "time" : "weight";
+  const t = state.exerciseTypes[name];
+  return t === "time" || t === "distance" ? t : "weight";
+}
+
+// 距離(km)と時間(分)からペース（1kmあたり）を「5'30"/km」形式で返す
+function formatPace(km, minutes) {
+  const k = Number(km);
+  const m = Number(minutes);
+  if (!k || !m) return "";
+  let pace = m / k; // 分/km
+  let pm = Math.floor(pace);
+  let ps = Math.round((pace - pm) * 60);
+  if (ps === 60) { pm += 1; ps = 0; }
+  return `${pm}'${String(ps).padStart(2, "0")}"/km`;
 }
 
 // 秒数を「1分30秒」形式に（60秒未満は空文字）
@@ -58,6 +72,10 @@ function loadData() {
     if (!Array.isArray(data.records)) data.records = [];
     if (!data.exerciseTypes) data.exerciseTypes = {};
     if (!data.settings) data.settings = { unit: "lb" };
+    // ランニング機能の後付け（既存データにも反映）
+    if (!data.exercises["有酸素"]) data.exercises["有酸素"] = ["ランニング"];
+    if (!data.exerciseTypes["ランニング"]) data.exerciseTypes["ランニング"] = "distance";
+    if (typeof data.settings.weeklyRunGoalKm !== "number") data.settings.weeklyRunGoalKm = 12;
     return data;
   } catch (e) {
     console.error("データ読み込み失敗", e);
@@ -96,6 +114,7 @@ $$(".tab-btn").forEach((btn) => {
       p.classList.toggle("active", p.id === `tab-${tab}`)
     );
     if (tab === "history") renderHistory();
+    if (tab === "running") renderRunning();
   });
 });
 
@@ -374,6 +393,14 @@ function updateLastRecord() {
         return `${s.seconds} 秒${f ? `（${f}）` : ""}`;
       })
       .join("<br>");
+  } else if (recType === "distance") {
+    setsText = rec.sets
+      .map((s) => {
+        const pace = formatPace(s.km, s.minutes);
+        const time = s.minutes ? ` / ${s.minutes}分` : "";
+        return `${s.km} km${time}${pace ? `（${pace}）` : ""}`;
+      })
+      .join("<br>");
   } else {
     const unit = rec.unit || "kg"; // 旧データはkg扱い
     setsText = rec.sets
@@ -428,6 +455,8 @@ function reuseLastRecord(rec) {
   setsList.innerHTML = "";
   if (currentType === "time") {
     rec.sets.forEach((s) => addSetRow(s.seconds));
+  } else if (currentType === "distance") {
+    rec.sets.forEach((s) => addSetRow(s.km, s.minutes ?? ""));
   } else {
     const unit = rec.unit || "kg";
     state.settings.unit = unit; // 単位を前回に合わせる
@@ -494,11 +523,13 @@ function applyExerciseType() {
 function setSetsModeUI() {
   const area = $("#setsArea");
   const header = $("#setsHeader");
+  area.classList.toggle("time-mode", currentType === "time");
+  area.classList.toggle("distance-mode", currentType === "distance");
   if (currentType === "time") {
-    area.classList.add("time-mode");
     header.innerHTML = `<span>#</span><span>時間（秒）</span><span></span>`;
+  } else if (currentType === "distance") {
+    header.innerHTML = `<span>#</span><span>距離（km）</span><span>時間（分）</span><span></span>`;
   } else {
-    area.classList.remove("time-mode");
     header.innerHTML =
       `<span>#</span><span>重量（<span id="unitLabel">${state.settings.unit}</span>）</span><span>回数</span><span>🔻</span><span></span>`;
   }
@@ -529,6 +560,15 @@ function updateSecHint(row) {
   hint.textContent = v === "" || isNaN(Number(v)) ? "" : (formatSeconds(v) ? `= ${formatSeconds(v)}` : "");
 }
 
+// 距離モードの km・分 → ペース表示
+function updatePaceHint(row) {
+  const km = row.querySelector(".set-km").value;
+  const min = row.querySelector(".set-minutes").value;
+  const hint = row.querySelector(".conv-hint");
+  const pace = formatPace(km, min);
+  hint.textContent = pace ? `= ${pace}` : "";
+}
+
 function refreshAllConvHints() {
   $("#unitLabel").textContent = state.settings.unit;
   setsList.querySelectorAll(".set-row").forEach(updateConvHint);
@@ -536,6 +576,7 @@ function refreshAllConvHints() {
 
 /* ---- セット行 ---- */
 // 重量モード: addSetRow(weight, reps, drop) / 時間モード: addSetRow(seconds)
+// 距離モード: addSetRow(km, minutes)
 function addSetRow(a = "", b = "", drop = false) {
   const row = document.createElement("div");
   row.className = "set-row";
@@ -549,6 +590,18 @@ function addSetRow(a = "", b = "", drop = false) {
       <button class="del-set" title="削除">×</button>
     `;
     row.querySelector(".set-seconds").addEventListener("input", () => updateSecHint(row));
+  } else if (currentType === "distance") {
+    row.innerHTML = `
+      <span class="set-no"></span>
+      <div class="weight-cell">
+        <input type="number" class="set-km" inputmode="decimal" min="0" step="0.1" value="${a}" />
+        <span class="conv-hint"></span>
+      </div>
+      <input type="number" class="set-minutes" inputmode="numeric" min="0" step="1" value="${b}" />
+      <button class="del-set" title="削除">×</button>
+    `;
+    row.querySelector(".set-km").addEventListener("input", () => updatePaceHint(row));
+    row.querySelector(".set-minutes").addEventListener("input", () => updatePaceHint(row));
   } else {
     row.innerHTML = `
       <span class="set-no"></span>
@@ -573,6 +626,7 @@ function addSetRow(a = "", b = "", drop = false) {
   setsList.appendChild(row);
   renumberSets();
   if (currentType === "time") updateSecHint(row);
+  else if (currentType === "distance") updatePaceHint(row);
   else updateConvHint(row);
 }
 
@@ -615,6 +669,18 @@ $("#saveRecord").addEventListener("click", () => {
     });
     if (sets.length === 0) {
       alert("時間（秒）を入力してください。");
+      return;
+    }
+  } else if (currentType === "distance") {
+    setsList.querySelectorAll(".set-row").forEach((r) => {
+      const km = r.querySelector(".set-km").value;
+      const min = r.querySelector(".set-minutes").value;
+      if (km !== "" || min !== "") {
+        sets.push({ km: km === "" ? 0 : Number(km), minutes: min === "" ? null : Number(min) });
+      }
+    });
+    if (sets.length === 0) {
+      alert("距離（km）を入力してください。");
       return;
     }
   } else {
@@ -790,6 +856,14 @@ function renderHistory() {
             return `${i + 1}set: ${s.seconds}秒${f ? `（${f}）` : ""}`;
           })
           .join("<br>");
+      } else if (r.type === "distance") {
+        setsText = r.sets
+          .map((s, i) => {
+            const pace = formatPace(s.km, s.minutes);
+            const time = s.minutes ? ` / ${s.minutes}分` : "";
+            return `${i + 1}本目: ${s.km}km${time}${pace ? `（${pace}）` : ""}`;
+          })
+          .join("<br>");
       } else {
         const unit = r.unit || "kg"; // 旧データはkg扱い
         setsText = r.sets
@@ -841,7 +915,7 @@ $("#exportCsv").addEventListener("click", () => {
     alert("出力する記録がありません。");
     return;
   }
-  const header = ["日付", "部位", "種目", "セット番号", "重量", "単位", "重量(kg換算)", "回数", "時間(秒)", "ドロップ", "メモ"];
+  const header = ["日付", "部位", "種目", "セット番号", "重量", "単位", "重量(kg換算)", "回数", "時間(秒)", "距離(km)", "時間(分)", "ドロップ", "メモ"];
   const rows = [header];
 
   const sorted = [...state.records].sort((a, b) =>
@@ -850,14 +924,18 @@ $("#exportCsv").addEventListener("click", () => {
   sorted.forEach((r) => {
     if ((r.type || "weight") === "time") {
       r.sets.forEach((s, i) => {
-        rows.push([r.date, r.bodyPart, r.exercise, i + 1, "", "", "", "", s.seconds, "", r.memo]);
+        rows.push([r.date, r.bodyPart, r.exercise, i + 1, "", "", "", "", s.seconds, "", "", "", r.memo]);
+      });
+    } else if (r.type === "distance") {
+      r.sets.forEach((s, i) => {
+        rows.push([r.date, r.bodyPart, r.exercise, i + 1, "", "", "", "", "", s.km, s.minutes ?? "", "", r.memo]);
       });
     } else {
       const unit = r.unit || "kg"; // 旧データはkg扱い
       r.sets.forEach((s, i) => {
         const kg = toKg(s.weight, unit).toFixed(1);
         const drop = s.drop ? "✓" : "";
-        rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, unit, kg, s.reps, "", drop, r.memo]);
+        rows.push([r.date, r.bodyPart, r.exercise, i + 1, s.weight, unit, kg, s.reps, "", "", "", drop, r.memo]);
       });
     }
   });
@@ -876,6 +954,136 @@ $("#exportCsv").addEventListener("click", () => {
 });
 
 /* =========================================================
+   ランニングタブ（週の目標 / 進捗 / ラン記録）
+   ========================================================= */
+const RUN_PART = "有酸素";
+const RUN_EXERCISE = "ランニング";
+
+// Date -> "YYYY-MM-DD"（ローカル）
+function dateToStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// 指定日を含む「今週」（月曜〜日曜）の範囲を返す
+function weekRange(baseStr) {
+  const base = new Date(baseStr + "T00:00:00");
+  const day = base.getDay(); // 0=日, 1=月, ...
+  const sinceMon = (day + 6) % 7; // 月曜からの経過日数
+  const mon = new Date(base);
+  mon.setDate(base.getDate() - sinceMon);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return { start: dateToStr(mon), end: dateToStr(sun) };
+}
+
+// 距離記録の合計km（1レコード分）
+function recordKm(r) {
+  return r.sets.reduce((sum, s) => sum + (Number(s.km) || 0), 0);
+}
+
+// 期間内の距離記録を新しい順で返す
+function distanceRecordsInRange(start, end) {
+  return state.records
+    .filter((r) => r.type === "distance" && r.date >= start && r.date <= end)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}
+
+function renderRunning() {
+  const goal = state.settings.weeklyRunGoalKm || 0;
+  $("#runGoalInput").value = goal;
+  $("#runGoalKm").textContent = goal;
+
+  const { start, end } = weekRange(todayStr());
+  const [, sm, sd] = start.split("-");
+  const [, em, ed] = end.split("-");
+  $("#runWeekRange").textContent = `${Number(sm)}/${Number(sd)} 〜 ${Number(em)}/${Number(ed)}（月〜日）`;
+
+  const runs = distanceRecordsInRange(start, end);
+  const total = runs.reduce((sum, r) => sum + recordKm(r), 0);
+  const pct = goal > 0 ? Math.min(100, (total / goal) * 100) : 0;
+
+  $("#runCurrentKm").textContent = total.toFixed(1);
+  const fill = $("#runBarFill");
+  fill.style.width = `${pct}%`;
+  fill.classList.toggle("done", goal > 0 && total >= goal);
+
+  const remain = goal - total;
+  if (goal <= 0) {
+    $("#runProgressSub").textContent = "目標距離を設定すると進捗が表示されます。";
+  } else if (remain <= 0) {
+    $("#runProgressSub").textContent = `🎉 今週の目標達成！（+${(-remain).toFixed(1)} km）`;
+  } else {
+    $("#runProgressSub").textContent = `目標まであと ${remain.toFixed(1)} km（達成率 ${Math.round(pct)}%）`;
+  }
+
+  const list = $("#runWeekList");
+  if (runs.length === 0) {
+    list.innerHTML = `<div class="history-empty">今週はまだ走っていません。走ったら記録しよう！</div>`;
+    return;
+  }
+  list.innerHTML = runs
+    .map((r) => {
+      const km = recordKm(r).toFixed(1);
+      const totalMin = r.sets.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
+      const pace = totalMin > 0 ? formatPace(recordKm(r), totalMin) : "";
+      const [, m, d] = r.date.split("-");
+      const sub = [totalMin > 0 ? `${totalMin}分` : "", pace].filter(Boolean).join(" / ");
+      return `
+      <div class="run-item">
+        <div class="run-item-date">${Number(m)}/${Number(d)}</div>
+        <div class="run-item-km">${km} <span>km</span></div>
+        <div class="run-item-sub">${sub}${r.memo ? ` ・ ${escapeHtml(r.memo)}` : ""}</div>
+      </div>`;
+    })
+    .join("");
+}
+
+// 週の目標を保存
+$("#saveRunGoal").addEventListener("click", () => {
+  const v = Number($("#runGoalInput").value);
+  state.settings.weeklyRunGoalKm = isNaN(v) || v < 0 ? 0 : v;
+  saveData();
+  renderRunning();
+});
+
+// ペースのライブ表示
+function updateRunPaceHint() {
+  const pace = formatPace($("#runKm").value, $("#runMinutes").value);
+  const hint = $("#runPaceHint");
+  hint.hidden = !pace;
+  hint.textContent = pace ? `ペース ${pace}` : "";
+}
+$("#runKm").addEventListener("input", updateRunPaceHint);
+$("#runMinutes").addEventListener("input", updateRunPaceHint);
+
+// ランを記録（距離タイプの記録として保存 → 履歴・CSVにも反映）
+$("#saveRun").addEventListener("click", () => {
+  const km = $("#runKm").value;
+  if (km === "" || Number(km) <= 0) {
+    alert("距離（km）を入力してください。");
+    return;
+  }
+  const min = $("#runMinutes").value;
+  state.records.push({
+    id: uid(),
+    date: $("#runDate").value || todayStr(),
+    bodyPart: RUN_PART,
+    exercise: RUN_EXERCISE,
+    type: "distance",
+    unit: null,
+    sets: [{ km: Number(km), minutes: min === "" ? null : Number(min) }],
+    memo: $("#runMemo").value.trim(),
+  });
+  saveData();
+  $("#runKm").value = "";
+  $("#runMinutes").value = "";
+  $("#runMemo").value = "";
+  updateRunPaceHint();
+  renderRunning();
+  alert("ランを記録しました 🏃");
+});
+
+/* =========================================================
    エスケープ
    ========================================================= */
 function escapeHtml(str) {
@@ -891,6 +1099,7 @@ function escapeHtml(str) {
    ========================================================= */
 function init() {
   $("#recordDate").value = todayStr();
+  $("#runDate").value = todayStr();
   // 保存済みの単位を反映
   $$(".unit-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.unit === state.settings.unit)

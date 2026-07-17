@@ -106,6 +106,65 @@
       </div>
     </section>
 
+    <!-- ============ ランニング ============ -->
+    <section id="tab-running" class="tab-panel">
+      <div class="card">
+        <h2>🏃 今週のランニング</h2>
+        <div class="run-week-range" id="runWeekRange"></div>
+
+        <div class="run-progress">
+          <div class="run-progress-top">
+            <span class="run-current" id="runCurrentKm">0.0</span>
+            <span class="run-goal">km / 目標 <b id="runGoalKm">12</b> km</span>
+          </div>
+          <div class="run-bar"><div class="run-bar-fill" id="runBarFill"></div></div>
+          <div class="run-progress-sub" id="runProgressSub"></div>
+        </div>
+
+        <label class="field">
+          <span>1週間の目標距離（km）</span>
+          <div class="row">
+            <input type="number" id="runGoalInput" min="0" step="0.5" inputmode="decimal" />
+            <button id="saveRunGoal" class="btn btn-ghost btn-sm">保存</button>
+          </div>
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>ランを記録</h2>
+
+        <label class="field">
+          <span>日付</span>
+          <input type="date" id="runDate" />
+        </label>
+
+        <div class="run-inputs">
+          <label class="field">
+            <span>距離（km）</span>
+            <input type="number" id="runKm" min="0" step="0.1" inputmode="decimal" placeholder="例：5" />
+          </label>
+          <label class="field">
+            <span>時間（分・任意）</span>
+            <input type="number" id="runMinutes" min="0" step="1" inputmode="numeric" placeholder="例：30" />
+          </label>
+        </div>
+
+        <div class="run-pace" id="runPaceHint" hidden></div>
+
+        <label class="field">
+          <span>メモ（任意）</span>
+          <input type="text" id="runMemo" placeholder="コース・体調など" />
+        </label>
+
+        <button id="saveRun" class="btn btn-primary btn-block">ランを記録</button>
+      </div>
+
+      <div class="card">
+        <h2>今週のラン</h2>
+        <div id="runWeekList" class="run-week-list"></div>
+      </div>
+    </section>
+
     <!-- ============ 履歴 ============ -->
     <section id="tab-history" class="tab-panel">
       <div class="card">
@@ -143,6 +202,7 @@
   <nav class="tab-bar">
     <button class="tab-btn" data-tab="timer">⏱<span>タイマー</span></button>
     <button class="tab-btn active" data-tab="record">📝<span>記録</span></button>
+    <button class="tab-btn" data-tab="running">🏃<span>ラン</span></button>
     <button class="tab-btn" data-tab="history">📊<span>履歴</span></button>
   </nav>
 
@@ -156,6 +216,7 @@
         <div class="mtype-toggle">
           <button type="button" class="mtype-btn active" data-mtype="weight">重量 × 回数</button>
           <button type="button" class="mtype-btn" data-mtype="time">時間（秒）</button>
+          <button type="button" class="mtype-btn" data-mtype="distance">距離（km）</button>
         </div>
       </div>
       <div class="modal-actions">
